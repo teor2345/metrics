@@ -1,5 +1,5 @@
 use crate::layers::Layer;
-use metrics::{Key, Recorder, SharedString, Unit};
+use metrics::{GaugeValue, Key, Recorder, SharedString, Unit};
 
 /// Applies a prefix to every metric key.
 ///
@@ -36,12 +36,12 @@ impl<R: Recorder> Recorder for Prefix<R> {
         self.inner.increment_counter(new_key, value);
     }
 
-    fn update_gauge(&self, key: Key, value: f64) {
+    fn update_gauge(&self, key: Key, value: GaugeValue) {
         let new_key = self.prefix_key(key);
         self.inner.update_gauge(new_key, value);
     }
 
-    fn record_histogram(&self, key: Key, value: u64) {
+    fn record_histogram(&self, key: Key, value: f64) {
         let new_key = self.prefix_key(key);
         self.inner.record_histogram(new_key, value);
     }

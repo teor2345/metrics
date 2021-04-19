@@ -1,15 +1,16 @@
 [package]
 name = "metrics-benchmark"
-version = "0.1.1-alpha.2"
+version = "0.1.1-alpha.5"
 authors = ["Toby Lawrence <toby@nuclearfurnace.com>"]
 edition = "2018"
+publish = false
 
 [dependencies]
 log = "0.4"
 env_logger = "0.8"
 getopts = "0.2"
-hdrhistogram = "7.0"
+hdrhistogram = "7.2"
 quanta = "0.6"
 atomic-shim = "0.1"
-metrics = { version = "0.13.0-alpha.0", path = "../metrics" }
-metrics-util = { version = "0.4.0-alpha.0", path = "../metrics-util" }
+metrics = { version = "0.13.0-alpha.13", path = "../metrics" }
+metrics-util = { version = "0.4.0-alpha.10", path = "../metrics-util" }

@@ -1,13 +1,14 @@
 use crate::AtomicBucket;
 
 use atomic_shim::AtomicU64;
+use metrics::GaugeValue;
 use std::sync::{atomic::Ordering, Arc};
 
 /// Basic metric handle.
 ///
 /// Provides fast, thread-safe access and storage for the three supported metric types: counters,
 /// gauges, and histograms.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum Handle {
     /// A counter.
     Counter(Arc<AtomicU64>),
@@ -16,7 +17,7 @@ pub enum Handle {
     Gauge(Arc<AtomicU64>),
 
     /// A histogram.
-    Histogram(Arc<AtomicBucket<u64>>),
+    Histogram(Arc<AtomicBucket<f64>>),
 }
 
 impl Handle {
@@ -56,10 +57,15 @@ impl Handle {
     /// Updates this handle as a gauge.
     ///
     /// Panics if this handle is not a gauge.
-    pub fn update_gauge(&self, value: f64) {
-        let unsigned = value.to_bits();
+    pub fn update_gauge(&self, value: GaugeValue) {
         match self {
-            Handle::Gauge(gauge) => gauge.store(unsigned, Ordering::SeqCst),
+            Handle::Gauge(gauge) => {
+                let _ = gauge.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |curr| {
+                    let input = f64::from_bits(curr);
+                    let output = value.update_value(input);
+                    Some(output.to_bits())
+                });
+            }
             _ => panic!("tried to update as gauge"),
         }
     }
@@ -67,7 +73,7 @@ impl Handle {
     /// Records to this handle as a histogram.
     ///
     /// Panics if this handle is not a histogram.
-    pub fn record_histogram(&self, value: u64) {
+    pub fn record_histogram(&self, value: f64) {
         match self {
             Handle::Histogram(bucket) => bucket.push(value),
             _ => panic!("tried to record as histogram"),
@@ -100,9 +106,19 @@ impl Handle {
     /// Reads this handle as a histogram.
     ///
     /// Panics if this handle is not a histogram.
-    pub fn read_histogram(&self) -> Vec<u64> {
+    pub fn read_histogram(&self) -> Vec<f64> {
         match self {
             Handle::Histogram(bucket) => bucket.data(),
+            _ => panic!("tried to read as histogram"),
+        }
+    }
+
+    /// Reads this handle as a histogram, and whether or not it's empty.
+    ///
+    /// Panics if this handle is not a histogram.
+    pub fn read_histogram_is_empty(&self) -> bool {
+        match self {
+            Handle::Histogram(bucket) => bucket.is_empty(),
             _ => panic!("tried to read as histogram"),
         }
     }
@@ -115,7 +131,7 @@ impl Handle {
     /// Panics if this handle is not a histogram.
     pub fn read_histogram_with_clear<F>(&self, f: F)
     where
-        F: FnMut(&[u64]),
+        F: FnMut(&[f64]),
     {
         match self {
             Handle::Histogram(bucket) => bucket.clear_with(f),

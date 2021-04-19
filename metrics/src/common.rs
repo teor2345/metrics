@@ -10,6 +10,28 @@ use crate::cow::Cow;
 /// `const_str`, from constructing `SharedString` from `&'static str` in a `const` fashion.
 pub type SharedString = Cow<'static, str>;
 
+/// Value of a gauge operation.
+#[derive(Clone, Debug)]
+pub enum GaugeValue {
+    /// Sets the value of the gauge to this value.
+    Absolute(f64),
+    /// Increments the value of the gauge by this much.
+    Increment(f64),
+    /// Decrements the value of the gauge by this much.
+    Decrement(f64),
+}
+
+impl GaugeValue {
+    /// Updates an input value based on this gauge value.
+    pub fn update_value(&self, input: f64) -> f64 {
+        match self {
+            GaugeValue::Absolute(val) => *val,
+            GaugeValue::Increment(val) => input + val,
+            GaugeValue::Decrement(val) => input - val,
+        }
+    }
+}
+
 /// Units for a given metric.
 ///
 /// While metrics do not necessarily need to be tied to a particular unit to be recorded, some
@@ -110,7 +132,7 @@ impl Unit {
             Unit::Percent => "%",
             Unit::Seconds => "s",
             Unit::Milliseconds => "ms",
-            Unit::Microseconds => "us",
+            Unit::Microseconds => "μs",
             Unit::Nanoseconds => "ns",
             Unit::Tebibytes => "TiB",
             Unit::Gigibytes => "GiB",
@@ -190,31 +212,31 @@ impl Unit {
     }
 }
 
-/// An object which can be converted into a `u64` representation.
+/// An object which can be converted into a `f64` representation.
 ///
 /// This trait provides a mechanism for existing types, which have a natural representation
-/// as an unsigned 64-bit integer, to be transparently passed in when recording a histogram.
-pub trait IntoU64 {
-    /// Converts this object to its `u64` representation.
-    fn into_u64(self) -> u64;
+/// as a 64-bit floating-point number, to be transparently passed in when recording a histogram.
+pub trait IntoF64 {
+    /// Converts this object to its `f64` representation.
+    fn into_f64(self) -> f64;
 }
 
-impl IntoU64 for u64 {
-    fn into_u64(self) -> u64 {
+impl IntoF64 for f64 {
+    fn into_f64(self) -> f64 {
         self
     }
 }
 
-impl IntoU64 for core::time::Duration {
-    fn into_u64(self) -> u64 {
-        self.as_nanos() as u64
+impl IntoF64 for core::time::Duration {
+    fn into_f64(self) -> f64 {
+        self.as_secs_f64()
     }
 }
 
 /// Helper method to allow monomorphization of values passed to the `histogram!` macro.
 #[doc(hidden)]
-pub fn __into_u64<V: IntoU64>(value: V) -> u64 {
-    value.into_u64()
+pub fn __into_f64<V: IntoF64>(value: V) -> f64 {
+    value.into_f64()
 }
 
 #[cfg(test)]

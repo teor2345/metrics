@@ -3,13 +3,12 @@ members = [
   "metrics",
   "metrics-macros",
   "metrics-util",
-  "metrics-benchmark",
   "metrics-exporter-tcp",
   "metrics-exporter-prometheus",
   "metrics-tracing-context",
+  "metrics-observer",
+  "metrics-benchmark",
 ]
-exclude = ["metrics-observer"]
 
 [patch.crates-io]
 hyper = { git = "https://github.com/hyperium/hyper/", rev = "ed2b22a7f66899d338691552fbcb6c0f2f4e06b9" }
-

@@ -10,8 +10,8 @@
 //! ## Emission
 //! Metrics are emitted by utilizing the registration or emission macros.  There is a macro for
 //! registering and emitting each fundamental metric type:
-//! - [`register_counter!`], [`increment!`], and [`counter!`] for counters
-//! - [`register_gauge!`] and [`gauge!`] for gauges
+//! - [`register_counter!`], [`counter!`], and [`increment_counter!`] for counters
+//! - [`register_gauge!`], [`gauge!`], [`increment_gauge!`], and [`decrement_gauge!`] for gauges
 //! - [`register_histogram!`] and [`histogram!`] for histograms
 //!
 //! In order to register or emit a metric, you need a way to record these events, which is where
@@ -94,7 +94,7 @@
 //!
 //! ```rust
 //! use log::info;
-//! use metrics::{Key, Recorder, Unit};
+//! use metrics::{GaugeValue, Key, Recorder, Unit};
 //! use metrics::SetRecorderError;
 //!
 //! struct LogRecorder;
@@ -110,11 +110,11 @@
 //!         info!("counter '{}' -> {}", key, value);
 //!     }
 //!
-//!     fn update_gauge(&self, key: Key, value: f64) {
-//!         info!("gauge '{}' -> {}", key, value);
+//!     fn update_gauge(&self, key: Key, value: GaugeValue) {
+//!         info!("gauge '{}' -> {:?}", key, value);
 //!     }
 //!
-//!     fn record_histogram(&self, key: Key, value: u64) {
+//!     fn record_histogram(&self, key: Key, value: f64) {
 //!         info!("histogram '{}' -> {}", key, value);
 //!     }
 //! }
@@ -218,8 +218,6 @@
 
 extern crate alloc;
 
-use proc_macro_hack::proc_macro_hack;
-
 mod common;
 pub use self::common::*;
 
@@ -268,14 +266,13 @@ pub use self::recorder::*;
 /// // And all combined:
 /// register_counter!("some_metric_name", Unit::Bytes, "number of woopsy daisies", "service" => "http");
 ///
-/// /// We can also pass labels by giving a vector or slice of key/value pairs.  In this scenario,
+/// // We can also pass labels by giving a vector or slice of key/value pairs.  In this scenario,
 /// // a unit or description can still be passed in their respective positions:
 /// let dynamic_val = "woo";
 /// let labels = [("dynamic_key", format!("{}!", dynamic_val))];
 /// register_counter!("some_metric_name", &labels);
 /// # }
 /// ```
-#[proc_macro_hack]
 pub use metrics_macros::register_counter;
 
 /// Registers a gauge.
@@ -319,7 +316,6 @@ pub use metrics_macros::register_counter;
 /// register_gauge!("some_metric_name", &labels);
 /// # }
 /// ```
-#[proc_macro_hack]
 pub use metrics_macros::register_gauge;
 
 /// Records a histogram.
@@ -363,7 +359,6 @@ pub use metrics_macros::register_gauge;
 /// register_histogram!("some_metric_name", &labels);
 /// # }
 /// ```
-#[proc_macro_hack]
 pub use metrics_macros::register_histogram;
 
 /// Increments a counter by one.
@@ -373,22 +368,21 @@ pub use metrics_macros::register_histogram;
 ///
 /// # Example
 /// ```
-/// # use metrics::increment;
+/// # use metrics::increment_counter;
 /// # fn main() {
 /// // A basic increment:
-/// increment!("some_metric_name");
+/// increment_counter!("some_metric_name");
 ///
 /// // Specifying labels:
-/// increment!("some_metric_name", "service" => "http");
+/// increment_counter!("some_metric_name", "service" => "http");
 ///
 /// // We can also pass labels by giving a vector or slice of key/value pairs:
 /// let dynamic_val = "woo";
 /// let labels = [("dynamic_key", format!("{}!", dynamic_val))];
-/// increment!("some_metric_name", &labels);
+/// increment_counter!("some_metric_name", &labels);
 /// # }
 /// ```
-#[proc_macro_hack]
-pub use metrics_macros::increment;
+pub use metrics_macros::increment_counter;
 
 /// Increments a counter.
 ///
@@ -411,7 +405,6 @@ pub use metrics_macros::increment;
 /// counter!("some_metric_name", 12, &labels);
 /// # }
 /// ```
-#[proc_macro_hack]
 pub use metrics_macros::counter;
 
 /// Updates a gauge.
@@ -435,8 +428,53 @@ pub use metrics_macros::counter;
 /// gauge!("some_metric_name", 42.42, &labels);
 /// # }
 /// ```
-#[proc_macro_hack]
 pub use metrics_macros::gauge;
+
+/// Increments a gauge.
+///
+/// Gauges represent a single value that can go up or down over time, and always starts out with an
+/// initial value of zero.
+///
+/// # Example
+/// ```
+/// # use metrics::increment_gauge;
+/// # fn main() {
+/// // A basic gauge:
+/// increment_gauge!("some_metric_name", 42.2222);
+///
+/// // Specifying labels:
+/// increment_gauge!("some_metric_name", 66.6666, "service" => "http");
+///
+/// // We can also pass labels by giving a vector or slice of key/value pairs:
+/// let dynamic_val = "woo";
+/// let labels = [("dynamic_key", format!("{}!", dynamic_val))];
+/// increment_gauge!("some_metric_name", 42.42, &labels);
+/// # }
+/// ```
+pub use metrics_macros::increment_gauge;
+
+/// Decrements a gauge.
+///
+/// Gauges represent a single value that can go up or down over time, and always starts out with an
+/// initial value of zero.
+///
+/// # Example
+/// ```
+/// # use metrics::decrement_gauge;
+/// # fn main() {
+/// // A basic gauge:
+/// decrement_gauge!("some_metric_name", 42.2222);
+///
+/// // Specifying labels:
+/// decrement_gauge!("some_metric_name", 66.6666, "service" => "http");
+///
+/// // We can also pass labels by giving a vector or slice of key/value pairs:
+/// let dynamic_val = "woo";
+/// let labels = [("dynamic_key", format!("{}!", dynamic_val))];
+/// decrement_gauge!("some_metric_name", 42.42, &labels);
+/// # }
+/// ```
+pub use metrics_macros::decrement_gauge;
 
 /// Records a histogram.
 ///
@@ -444,12 +482,13 @@ pub use metrics_macros::gauge;
 /// initial values.
 ///
 /// # Implicit conversions
-/// Histograms are represented as `u64` values, but often come from another source, such as a time
-/// measurement.  By default, `histogram!` will accept a `u64` directly or a
-/// [`Duration`](std::time::Duration), which uses the nanoseconds total as the converted value.
+/// Histograms are represented as `f64` values, but often come from another source, such as a time
+/// measurement.  By default, `histogram!` will accept a `f64` directly or a
+/// [`Duration`](std::time::Duration), which uses the floating-point number of seconds represents by
+/// the duration.
 ///
 /// External libraries and applications can create their own conversions by implementing the
-/// [`IntoU64`] trait for their types, which is required for the value being passed to `histogram!`.
+/// [`IntoF64`] trait for their types, which is required for the value being passed to `histogram!`.
 ///
 /// # Example
 /// ```
@@ -457,20 +496,19 @@ pub use metrics_macros::gauge;
 /// # use std::time::Duration;
 /// # fn main() {
 /// // A basic histogram:
-/// histogram!("some_metric_name", 34);
+/// histogram!("some_metric_name", 34.3);
 ///
 /// // An implicit conversion from `Duration`:
 /// let d = Duration::from_millis(17);
 /// histogram!("some_metric_name", d);
 ///
 /// // Specifying labels:
-/// histogram!("some_metric_name", 38, "service" => "http");
+/// histogram!("some_metric_name", 38.0, "service" => "http");
 ///
 /// // We can also pass labels by giving a vector or slice of key/value pairs:
 /// let dynamic_val = "woo";
 /// let labels = [("dynamic_key", format!("{}!", dynamic_val))];
-/// histogram!("some_metric_name", 1337, &labels);
+/// histogram!("some_metric_name", 1337.5, &labels);
 /// # }
 /// ```
-#[proc_macro_hack]
 pub use metrics_macros::histogram;

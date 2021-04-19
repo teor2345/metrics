@@ -1,4 +1,4 @@
-use crate::{Key, Unit};
+use crate::{GaugeValue, Key, Unit};
 use core::fmt;
 use core::sync::atomic::{AtomicUsize, Ordering};
 
@@ -45,10 +45,10 @@ pub trait Recorder {
     fn increment_counter(&self, key: Key, value: u64);
 
     /// Updates a gauge.
-    fn update_gauge(&self, key: Key, value: f64);
+    fn update_gauge(&self, key: Key, value: GaugeValue);
 
     /// Records a histogram.
-    fn record_histogram(&self, key: Key, value: u64);
+    fn record_histogram(&self, key: Key, value: f64);
 }
 
 /// A no-op recorder.
@@ -69,8 +69,8 @@ impl Recorder for NoopRecorder {
     ) {
     }
     fn increment_counter(&self, _key: Key, _value: u64) {}
-    fn update_gauge(&self, _key: Key, _value: f64) {}
-    fn record_histogram(&self, _key: Key, _value: u64) {}
+    fn update_gauge(&self, _key: Key, _value: GaugeValue) {}
+    fn record_histogram(&self, _key: Key, _value: f64) {}
 }
 
 /// Sets the global recorder to a `&'static Recorder`.

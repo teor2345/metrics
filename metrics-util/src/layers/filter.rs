@@ -1,6 +1,6 @@
 use crate::layers::Layer;
 use aho_corasick::{AhoCorasick, AhoCorasickBuilder};
-use metrics::{Key, Recorder, Unit};
+use metrics::{GaugeValue, Key, Recorder, Unit};
 
 /// Filters and discards metrics matching certain name patterns.
 ///
@@ -48,14 +48,14 @@ impl<R: Recorder> Recorder for Filter<R> {
         self.inner.increment_counter(key, value);
     }
 
-    fn update_gauge(&self, key: Key, value: f64) {
+    fn update_gauge(&self, key: Key, value: GaugeValue) {
         if self.should_filter(&key) {
             return;
         }
         self.inner.update_gauge(key, value);
     }
 
-    fn record_histogram(&self, key: Key, value: u64) {
+    fn record_histogram(&self, key: Key, value: f64) {
         if self.should_filter(&key) {
             return;
         }

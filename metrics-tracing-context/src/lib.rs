@@ -55,7 +55,7 @@
 #![deny(missing_docs)]
 #![cfg_attr(docsrs, feature(doc_cfg), deny(broken_intra_doc_links))]
 
-use metrics::{Key, KeyData, Label, Recorder, Unit};
+use metrics::{GaugeValue, Key, KeyData, Label, Recorder, Unit};
 use metrics_util::layers::Layer;
 use tracing::Span;
 
@@ -152,12 +152,12 @@ where
         self.inner.increment_counter(key, value);
     }
 
-    fn update_gauge(&self, key: Key, value: f64) {
+    fn update_gauge(&self, key: Key, value: GaugeValue) {
         let key = self.enhance_key(key);
         self.inner.update_gauge(key, value);
     }
 
-    fn record_histogram(&self, key: Key, value: u64) {
+    fn record_histogram(&self, key: Key, value: f64) {
         let key = self.enhance_key(key);
         self.inner.record_histogram(key, value);
     }

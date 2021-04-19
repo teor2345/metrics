@@ -3,7 +3,6 @@ extern crate proc_macro;
 use self::proc_macro::TokenStream;
 
 use lazy_static::lazy_static;
-use proc_macro_hack::proc_macro_hack;
 use quote::{format_ident, quote, ToTokens};
 use regex::Regex;
 use syn::parse::discouraged::Speculative;
@@ -144,7 +143,7 @@ impl Parse for Registration {
     }
 }
 
-#[proc_macro_hack]
+#[proc_macro]
 pub fn register_counter(input: TokenStream) -> TokenStream {
     let Registration {
         key,
@@ -156,7 +155,7 @@ pub fn register_counter(input: TokenStream) -> TokenStream {
     get_expanded_registration("counter", key, unit, description, labels).into()
 }
 
-#[proc_macro_hack]
+#[proc_macro]
 pub fn register_gauge(input: TokenStream) -> TokenStream {
     let Registration {
         key,
@@ -168,7 +167,7 @@ pub fn register_gauge(input: TokenStream) -> TokenStream {
     get_expanded_registration("gauge", key, unit, description, labels).into()
 }
 
-#[proc_macro_hack]
+#[proc_macro]
 pub fn register_histogram(input: TokenStream) -> TokenStream {
     let Registration {
         key,
@@ -180,8 +179,8 @@ pub fn register_histogram(input: TokenStream) -> TokenStream {
     get_expanded_registration("histogram", key, unit, description, labels).into()
 }
 
-#[proc_macro_hack]
-pub fn increment(input: TokenStream) -> TokenStream {
+#[proc_macro]
+pub fn increment_counter(input: TokenStream) -> TokenStream {
     let WithoutExpression { key, labels } = parse_macro_input!(input as WithoutExpression);
 
     let op_value = quote! { 1 };
@@ -189,7 +188,7 @@ pub fn increment(input: TokenStream) -> TokenStream {
     get_expanded_callsite("counter", "increment", key, labels, op_value).into()
 }
 
-#[proc_macro_hack]
+#[proc_macro]
 pub fn counter(input: TokenStream) -> TokenStream {
     let WithExpression {
         key,
@@ -200,7 +199,33 @@ pub fn counter(input: TokenStream) -> TokenStream {
     get_expanded_callsite("counter", "increment", key, labels, op_value).into()
 }
 
-#[proc_macro_hack]
+#[proc_macro]
+pub fn increment_gauge(input: TokenStream) -> TokenStream {
+    let WithExpression {
+        key,
+        op_value,
+        labels,
+    } = parse_macro_input!(input as WithExpression);
+
+    let gauge_value = quote! { metrics::GaugeValue::Increment(#op_value) };
+
+    get_expanded_callsite("gauge", "update", key, labels, gauge_value).into()
+}
+
+#[proc_macro]
+pub fn decrement_gauge(input: TokenStream) -> TokenStream {
+    let WithExpression {
+        key,
+        op_value,
+        labels,
+    } = parse_macro_input!(input as WithExpression);
+
+    let gauge_value = quote! { metrics::GaugeValue::Decrement(#op_value) };
+
+    get_expanded_callsite("gauge", "update", key, labels, gauge_value).into()
+}
+
+#[proc_macro]
 pub fn gauge(input: TokenStream) -> TokenStream {
     let WithExpression {
         key,
@@ -208,10 +233,12 @@ pub fn gauge(input: TokenStream) -> TokenStream {
         labels,
     } = parse_macro_input!(input as WithExpression);
 
-    get_expanded_callsite("gauge", "update", key, labels, op_value).into()
+    let gauge_value = quote! { metrics::GaugeValue::Absolute(#op_value) };
+
+    get_expanded_callsite("gauge", "update", key, labels, gauge_value).into()
 }
 
-#[proc_macro_hack]
+#[proc_macro]
 pub fn histogram(input: TokenStream) -> TokenStream {
     let WithExpression {
         key,
@@ -265,10 +292,10 @@ fn get_expanded_callsite<V>(
 where
     V: ToTokens,
 {
-    // We use a helper method for histogram values to coerce into u64, but otherwise,
+    // We use a helper method for histogram values to coerce into f64, but otherwise,
     // just pass through whatever the caller gave us.
     let op_values = if metric_type == "histogram" {
-        quote! { metrics::__into_u64(#op_values) }
+        quote! { metrics::__into_f64(#op_values) }
     } else {
         quote! { #op_values }
     };

@@ -2,7 +2,7 @@ use atomic_shim::AtomicU64;
 use getopts::Options;
 use hdrhistogram::Histogram;
 use log::{error, info};
-use metrics::{gauge, histogram, increment};
+use metrics::{gauge, histogram, increment_counter};
 use metrics_util::DebuggingRecorder;
 use quanta::{Clock, Instant as QuantaInstant};
 use std::{
@@ -43,10 +43,6 @@ impl Generator {
         loop {
             counter += 1;
 
-            if self.done.load(Ordering::Relaxed) {
-                break;
-            }
-
             self.gauge += 1;
 
             let t1 = clock.now();
@@ -58,7 +54,7 @@ impl Generator {
                     None
                 };
 
-                increment!("ok");
+                increment_counter!("ok");
                 gauge!("total", self.gauge as f64);
                 histogram!("ok", t1.sub(t0));
 
@@ -69,6 +65,10 @@ impl Generator {
                     // We also increment our global counter for the sample rate here.
                     self.rate_counter
                         .fetch_add(LOOP_SAMPLE * 3, Ordering::AcqRel);
+
+                    if self.done.load(Ordering::Relaxed) {
+                        break;
+                    }
                 }
             }
 
